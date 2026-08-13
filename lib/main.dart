@@ -4,6 +4,7 @@ import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get_it/get_it.dart';
 import 'package:gyawun/themes/theme.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -27,15 +28,20 @@ import 'services/media_player.dart';
 import 'services/settings_manager.dart';
 import 'utils/router.dart';
 
+final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
   if (Platform.isAndroid) {
     await JustAudioBackground.init(
       androidNotificationChannelId: 'com.jhelum.gyawun.audio',
       androidNotificationChannelName: 'Audio playback',
       androidNotificationOngoing: true,
-      // androidStopForegroundOnPause: false,
+      androidStopForegroundOnPause: false,
     );
+    
+    await initNotifications();
   }
 
   if (Platform.isWindows || Platform.isLinux) {
@@ -45,6 +51,7 @@ void main() async {
     JustAudioMediaKit.prefetchPlaylist = true;
     JustAudioMediaKit.pitch = true;
   }
+  
   await initialiseHive();
   await SystemChrome.setEnabledSystemUIMode(
     SystemUiMode.edgeToEdge,
@@ -193,4 +200,28 @@ Future<YTConfig?>? getYtConfig(SettingsManager settingsManager) async {
       clientVersion: clientVersion,
     );
   }
+}
+
+Future<void> initNotifications() async {
+  const AndroidInitializationSettings initializationSettingsAndroid =
+      AndroidInitializationSettings('@mipmap/ic_launcher');
+  
+  const InitializationSettings initializationSettings =
+      InitializationSettings(android: initializationSettingsAndroid);
+  
+  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+  
+  const AndroidNotificationChannel channel = AndroidNotificationChannel(
+    'com.jhelum.gyawun.audio',
+    'Audio playback',
+    description: 'Notification channel for music playback',
+    importance: Importance.defaultImportance,
+    playSound: false,
+    enableVibration: false,
+  );
+  
+  await flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>()
+      ?.createNotificationChannel(channel);
 }
